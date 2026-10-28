@@ -2,7 +2,8 @@
 import { useState } from "react";
 import "./Auth.css";
 
-const AUTH_URL = "http://localhost:5000/api/auth";
+const AUTH_URL =
+  "https://imovies-backend-axjk.onrender.com/api/auth";
 
 export default function Auth({ onLogin }) {
   const [mode, setMode] = useState("login");
@@ -22,19 +23,25 @@ export default function Auth({ onLogin }) {
 
   async function handleSubmit(event) {
     event.preventDefault();
+
     setLoading(true);
     setMessage("");
     setIsError(false);
 
     try {
+      const endpoint =
+        mode === "signup" ? "signup" : "login";
+
       const response = await fetch(
-        `${AUTH_URL}/${mode === "signup" ? "signup" : "login"}`,
+        `${AUTH_URL}/${endpoint}`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({
-            name,
-            email,
+            ...(mode === "signup" ? { name: name.trim() } : {}),
+            email: email.trim(),
             password,
           }),
         }
@@ -43,18 +50,33 @@ export default function Auth({ onLogin }) {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Something went wrong.");
+        throw new Error(
+          data.message || "Unable to complete your request."
+        );
+      }
+
+      if (!data.token || !data.user) {
+        throw new Error(
+          "Unexpected server response. Please try again."
+        );
       }
 
       localStorage.setItem("imovies_token", data.token);
+
       onLogin(data.user);
     } catch (error) {
       setIsError(true);
-      setMessage(
-        error.message.includes("Failed to fetch")
-          ? "Backend start karo aur phir try karo."
-          : error.message
-      );
+
+      if (
+        error instanceof TypeError ||
+        error.message.toLowerCase().includes("failed to fetch")
+      ) {
+        setMessage(
+          "Server se connection nahi ho raha. Backend URL aur server status check karo."
+        );
+      } else {
+        setMessage(error.message || "Something went wrong.");
+      }
     } finally {
       setLoading(false);
     }
@@ -71,7 +93,9 @@ export default function Auth({ onLogin }) {
 
       <div className="auth-layout">
         <section className="auth-intro">
-          <p className="auth-eyebrow">YOUR CINEMA EXPERIENCE</p>
+          <p className="auth-eyebrow">
+            YOUR CINEMA EXPERIENCE
+          </p>
 
           <h1>
             YOUR NEXT
@@ -87,9 +111,15 @@ export default function Auth({ onLogin }) {
           </p>
 
           <div className="auth-feature-list">
-            <div><span>✦</span> Discover exciting movies</div>
-            <div><span>✦</span> Choose your favourite seats</div>
-            <div><span>✦</span> Keep track of your demo bookings</div>
+            <div>
+              <span>✦</span> Discover exciting movies
+            </div>
+            <div>
+              <span>✦</span> Choose your favourite seats
+            </div>
+            <div>
+              <span>✦</span> Keep track of your demo bookings
+            </div>
           </div>
 
           <div className="auth-decoration">
@@ -100,14 +130,19 @@ export default function Auth({ onLogin }) {
 
         <section className="auth-card">
           <div className="auth-card-top">
-            <span className="auth-card-label">WELCOME TO IMOVIES</span>
+            <span className="auth-card-label">
+              WELCOME TO IMOVIES
+            </span>
+
             <span className="auth-status">
               <i /> YOUR MOVIE SPACE
             </span>
           </div>
 
           <h2>
-            {mode === "login" ? "Welcome back." : "Create your account."}
+            {mode === "login"
+              ? "Welcome back."
+              : "Create your account."}
           </h2>
 
           <p className="auth-subtitle">
@@ -121,6 +156,7 @@ export default function Auth({ onLogin }) {
               type="button"
               className={mode === "login" ? "selected" : ""}
               onClick={() => changeMode("login")}
+              disabled={loading}
             >
               Login
             </button>
@@ -129,6 +165,7 @@ export default function Auth({ onLogin }) {
               type="button"
               className={mode === "signup" ? "selected" : ""}
               onClick={() => changeMode("signup")}
+              disabled={loading}
             >
               Sign Up
             </button>
@@ -138,11 +175,14 @@ export default function Auth({ onLogin }) {
             {mode === "signup" && (
               <label className="auth-field">
                 <span>Full name</span>
+
                 <input
                   type="text"
                   placeholder="Enter your name"
                   value={name}
-                  onChange={(event) => setName(event.target.value)}
+                  onChange={(event) =>
+                    setName(event.target.value)
+                  }
                   autoComplete="name"
                   maxLength={60}
                   required
@@ -152,11 +192,14 @@ export default function Auth({ onLogin }) {
 
             <label className="auth-field">
               <span>Email address</span>
+
               <input
                 type="email"
                 placeholder="you@example.com"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(event) =>
+                  setEmail(event.target.value)
+                }
                 autoComplete="email"
                 required
               />
@@ -170,9 +213,13 @@ export default function Auth({ onLogin }) {
                   type={showPassword ? "text" : "password"}
                   placeholder="At least 8 characters"
                   value={password}
-                  onChange={(event) => setPassword(event.target.value)}
+                  onChange={(event) =>
+                    setPassword(event.target.value)
+                  }
                   autoComplete={
-                    mode === "signup" ? "new-password" : "current-password"
+                    mode === "signup"
+                      ? "new-password"
+                      : "current-password"
                   }
                   minLength={8}
                   required
@@ -181,7 +228,14 @@ export default function Auth({ onLogin }) {
                 <button
                   className="show-password"
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
+                  onClick={() =>
+                    setShowPassword(!showPassword)
+                  }
+                  aria-label={
+                    showPassword
+                      ? "Hide password"
+                      : "Show password"
+                  }
                 >
                   {showPassword ? "Hide" : "Show"}
                 </button>
@@ -189,7 +243,12 @@ export default function Auth({ onLogin }) {
             </label>
 
             {message && (
-              <p className={`auth-message ${isError ? "error" : "success"}`}>
+              <p
+                role="alert"
+                className={`auth-message ${
+                  isError ? "error" : "success"
+                }`}
+              >
                 {message}
               </p>
             )}
@@ -211,13 +270,19 @@ export default function Auth({ onLogin }) {
             {mode === "login"
               ? "New to IMovies?"
               : "Already have an account?"}{" "}
+
             <button
               type="button"
+              disabled={loading}
               onClick={() =>
-                changeMode(mode === "login" ? "signup" : "login")
+                changeMode(
+                  mode === "login" ? "signup" : "login"
+                )
               }
             >
-              {mode === "login" ? "Create account" : "Login"}
+              {mode === "login"
+                ? "Create account"
+                : "Login"}
             </button>
           </p>
 
